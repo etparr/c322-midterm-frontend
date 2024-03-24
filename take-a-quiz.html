@@ -4,8 +4,179 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <link rel="stylesheet" href="navbar.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="quiz.css">
+
 </head>
 <body>
-  
+<ul class="topnav">
+  <li><a href="index.html">Home</a></li>
+  <li><a class="active" href="add-question.html">Add questions</a></li>
+  <li><a href="make-a-quiz.html">Create a quiz</a></li>
+  <li><a href="take-a-quiz.html">Take a quiz</a></li>
+  <li class="right"><a href="#about">About</a></li>
+</ul>
+<div class="container">
+  <div class="header">
+    <h2>Available Quizzes</h2>
+  </div>
+  <div id="quizzesContainer" class="cards">
+  </div>
+</div>
 </body>
+
+<script>
+let selectedQuizTitle = "";
+let host = "https://c322-midterm-backend-latest-rbgu.onrender.com";
+let currentQuestionIndex = 0;
+let quizQuestions = [];
+let score = 0;
+let selectedAnswers = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+  fetchQuizzes();
+});
+
+function fetchQuizzes() {
+  fetch(`${host}/quizzes`)
+    .then(response => response.json())
+    .then(data => displayQuizzes(data))
+    .catch(error => console.error('Error fetching quizzes:', error));
+}
+
+function displayQuizzes(quizzes) {
+  const container = document.getElementById('quizzesContainer');
+  quizzes.forEach(quiz => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+        <h3><b>${quiz.id}</b></h3>
+        <p>${quiz.title}</p>
+        <p>(${quiz.questions.length} questions)</p>
+      `;
+    card.onclick = () => {
+      selectedQuizTitle = quiz.title;
+      startQuiz(quiz.id);
+    };
+    container.appendChild(card);
+  });
+}
+
+function startQuiz(quizId) {
+  document.querySelector('.topnav').style.display = 'none';
+  document.getElementById('quizzesContainer').style.display = 'none';
+  fetch(`${host}/quizzes/${quizId}`)
+    .then(response => response.json())
+    .then(data => {
+      quizQuestions = data.questions;
+      selectedAnswers = new Array(quizQuestions.length).fill(null);
+      displayQuestion(currentQuestionIndex);
+    })
+    .catch(error => console.error('Error fetching quiz details:', error));
+}
+
+function displayQuestion(index) {
+  const question = quizQuestions[index];
+  const totalQuestions = quizQuestions.length;
+  const currentQuestion = index + 1;
+  const imageUrl = `${host}/questions/${question.id}/image`;
+  const container = document.createElement('div');
+  container.className = 'quiz-container';
+
+  const selectedAnswer = selectedAnswers[index];
+
+  const cardContent = `
+    <div class="cards" style="text-align: center;">
+      <div class="card" style="text-align: left;">
+        <img src="${imageUrl}" alt="Question Image" onerror="this.style.display='none'">
+        <h3>${question.description}</h3>
+        ${question.choices.map((choice, i) => `
+          <input type="radio" id="choice${i}" name="choices" value="${choice}" ${selectedAnswer === choice ? 'checked' : ''}>
+          <label for="choice${i}">${choice}</label><br>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  container.innerHTML = cardContent;
+
+  const questionCounter = document.createElement('div');
+  questionCounter.textContent = `(Question ${currentQuestion} out of ${totalQuestions})`;
+
+  const buttonContainer = document.createElement('div');
+  buttonContainer.className = 'button-container';
+  buttonContainer.style.textAlign = 'center';
+  buttonContainer.innerHTML = `
+    <button onclick="changeQuestion(-1)">Previous</button>
+    ${questionCounter.outerHTML}
+    <button onclick="saveSelectedAnswer(${index})">Next</button>
+  `;
+
+  container.appendChild(buttonContainer);
+  document.body.innerHTML = '';
+  document.body.appendChild(container);
+}
+
+function saveSelectedAnswer(index) {
+  const selectedChoice = document.querySelector(`input[name="choices"]:checked`);
+  if (selectedChoice) {
+    selectedAnswers[index] = selectedChoice.value;
+  } else {
+    selectedAnswers[index] = null;
+  }
+  changeQuestion(1);
+}
+
+function changeQuestion(direction) {
+  currentQuestionIndex += direction;
+  if (currentQuestionIndex < 0) {
+    currentQuestionIndex = 0;
+  } else if (currentQuestionIndex >= quizQuestions.length) {
+    displayScoreWithNavbar();
+    return;
+  }
+  displayQuestion(currentQuestionIndex);
+}
+
+function displayScoreWithNavbar() {
+  const scoreContainer = document.createElement('div');
+  let score = 0;
+  let correctAnswers = 0;
+
+  quizQuestions.forEach((question, index) => {
+    const selectedAnswer = selectedAnswers[index];
+    const correctAnswer = question.answer;
+    const isCorrect = selectedAnswer === correctAnswer;
+    if (isCorrect) {
+      score++;
+    }
+    correctAnswers += isCorrect ? 1 : 0;
+  });
+
+  scoreContainer.innerHTML = `
+    <h2>You completed the quiz ${selectedQuizTitle}.</h2>
+    <h3>You scored ${score} out of ${quizQuestions.length}.</h3>
+  `;
+  
+  scoreContainer.style.width = '50%';
+  scoreContainer.style.marginLeft = 'auto';
+  scoreContainer.style.marginRight = 'auto';
+
+  document.body.innerHTML = '';
+
+  const navbar = document.createElement('ul');
+  navbar.className = 'topnav';
+  navbar.innerHTML = `
+    <li><a href="index.html">Home</a></li>
+    <li><a class="active" href="add-question.html">Add questions</a></li>
+    <li><a href="make-a-quiz.html">Create a quiz</a></li>
+    <li><a href="take-a-quiz.html">Take a quiz</a></li>
+    <li class="right"><a href="#about">About</a></li>
+  `;
+  document.body.appendChild(navbar);
+
+  document.body.appendChild(scoreContainer);
+}
+</script>
 </html>

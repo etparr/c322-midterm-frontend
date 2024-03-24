@@ -4,8 +4,146 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+  <link rel="stylesheet" href="navbar.css">
+  <link rel="stylesheet" href="cards.css">
+  <link rel="stylesheet" href="make-a-quiz.css">
 </head>
 <body>
-  
+  <ul class="topnav">
+    <li><a href="index.html">Home</a></li>
+    <li><a class="active" href="add-question.html">Add questions</a></li>
+    <li><a href="make-a-quiz.html">Create a quiz</a></li>
+    <li><a href="take-a-quiz.html">Take a quiz</a></li>
+    <li class="right"><a href="#about">About</a></li>
+  </ul>
+
+<div class="questions" id="questionsSection">
+  <div class="questions-header">
+      <h2>Questions Bank</h2>
+      <p>Click on a question to add it to the quiz.</p>
+  </div>
+  <div class="cards" id="cardsContainer">
+  </div>
+</div>
+
+<div class="quiz">
+  <h2 id="quizHeading">The New Quiz</h2>
+  <label for="quizTitle">Quiz Title:</label>
+  <input type="text" id="quizTitle" placeholder="Enter Quiz Title" />
+  <button id="saveQuiz">Save Your Changes</button>
+  <button id="saveAndNewQuiz">Save and Start a New Quiz</button>
+</div>
+
+<script>
+  let host = "https://c322-midterm-backend-latest-rbgu.onrender.com";
+  let questions = [];
+  let selectedQuestions = [];
+
+  updateQuizHeading();
+
+  async function getAll() {
+    try {
+      const response = await fetch(`${host}/questions`);
+      if (!response.ok) throw new Error('Network response was not ok.');
+      return await response.json();
+    } catch (error) {
+      console.error('Fethc Failed', error);
+      return [];
+    }
+  }
+
+  async function displayTheQuestions() {
+    if (questions.length === 0) {
+      questions = await getAll();
+    }
+    
+    let questionsSection = document.getElementById("cardsContainer");
+    questionsSection.innerHTML = '';
+
+    questions.forEach(question => {
+      let div = document.createElement("div");
+      div.className = "card";
+      let isSelected = selectedQuestions.includes(question.id);
+      div.style.border = isSelected ? "2px solid orange" : "";
+      let innerHtml = `
+        <img src="${host}/questions/${question.id}/image" alt="question" style="width:100%">
+        <div class="container">
+          <h4><b>${question.id}</b></h4> 
+          <p>${question.description}</p>
+          <form>
+              <input type="radio" id="q${question.id}ptionA" name="q${question.id}Answer" value="A">
+              <label for="q${question.id}ptionA">${question.choices[0]}</label><br>
+
+              <input type="radio" id="q${question.id}ptionB" name="q${question.id}Answer" value="B">
+              <label for="q${question.id}ptionB">${question.choices[1]}</label><br>
+
+              <input type="radio" id="q${question.id}ptionC" name="q${question.id}Answer" value="C">
+              <label for="q${question.id}ptionC">${question.choices[2]}</label><br>       
+          </form> 
+        </div>
+      `;
+      div.innerHTML = innerHtml;
+      questionsSection.appendChild(div);
+
+      div.addEventListener("click", () => {
+        const index = selectedQuestions.indexOf(question.id);
+        if (index > -1) {
+          selectedQuestions.splice(index, 1); // Remove if exists
+        } else {
+          selectedQuestions.push(question.id); // Add if doesn't exist
+        }
+        div.style.border = selectedQuestions.includes(question.id) ? "2px solid orange" : "";
+        updateQuizHeading();
+      });
+    });
+  }
+
+  function updateQuizHeading() {
+    const quizTitle = document.getElementById("quizTitle").value.trim();
+    const questionCount = selectedQuestions.length;
+    const headingText = quizTitle ? `${quizTitle} (${questionCount} questions)` : `The New Quiz (${questionCount} questions)`;
+    document.getElementById("quizHeading").innerText = headingText;
+  }
+
+
+
+  async function saveQuiz(isNewQuiz = false) {
+    const quizTitle = document.getElementById("quizTitle").value.trim();
+    if (quizTitle === "" || selectedQuestions.length === 0) {
+      alert("Please add a title and select at least one question.");
+return;
+}
+const quiz = {
+  title: quizTitle,
+  questionIds: selectedQuestions
+};
+
+try {
+  const response = await fetch(`${host}/quizzes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(quiz),
+  });
+
+  if (!response.ok) throw new Error('Network response was not ok.');
+  const quizId = await response.json();
+
+  if (isNewQuiz) {
+    window.location.reload();
+  }
+} catch (error) {
+  console.error('Error saving quiz:', error);
+}
+}
+
+document.getElementById("quizTitle").addEventListener("input", updateQuizHeading);
+
+document.getElementById("saveQuiz").addEventListener("click", () => saveQuiz(false));
+document.getElementById("saveAndNewQuiz").addEventListener("click", () => saveQuiz(true));
+
+displayTheQuestions();
+</script>
 </body>
 </html>
